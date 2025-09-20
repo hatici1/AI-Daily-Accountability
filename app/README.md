@@ -17,6 +17,8 @@ Inside this folder run:
 - [TypeScript](https://www.typescriptlang.org/)
 - [Vite](https://vite.dev/) for fast bundling and DX
 
+Re-importing the same CSV file is safe—the app deduplicates matching transactions to avoid skewed totals.
+
 ## Project structure
 
 ```

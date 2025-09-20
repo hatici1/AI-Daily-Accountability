@@ -67,6 +67,46 @@ const GERMAN_HEADERS: Record<keyof HeaderMap, string[]> = {
   bankCategory: ["Kategorie", "Kategorie der Bank", "Category"],
 };
 
+function getLocalStorage(): Storage | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function safeStorageGet(key: string): string | null {
+  const storage = getLocalStorage();
+  if (!storage) return null;
+  try {
+    return storage.getItem(key);
+  } catch (error) {
+    console.warn(`Failed to read "${key}" from localStorage`, error);
+    return null;
+  }
+}
+
+function safeStorageSet(key: string, value: string): void {
+  const storage = getLocalStorage();
+  if (!storage) return;
+  try {
+    storage.setItem(key, value);
+  } catch (error) {
+    console.warn(`Failed to write "${key}" to localStorage`, error);
+  }
+}
+
+function safeStorageRemove(key: string): void {
+  const storage = getLocalStorage();
+  if (!storage) return;
+  try {
+    storage.removeItem(key);
+  } catch (error) {
+    console.warn(`Failed to remove "${key}" from localStorage`, error);
+  }
+}
+
 function normaliseHeader(header: string): string {
   return header.replace(/^\uFEFF/, "").replace(/\u00a0/g, " ").trim();
 }
@@ -440,12 +480,33 @@ function normaliseStoredTransactions(value: string | null): Transaction[] {
 const formatterFor = (currency: string) =>
   new Intl.NumberFormat(undefined, { style: "currency", currency, currencyDisplay: "symbol" });
 
+function fingerprintTransaction(transaction: Transaction): string {
+  const base = [
+    transaction.bookingDate,
+    transaction.valueDate ?? "",
+    String(transaction.amount),
+    transaction.currency,
+    transaction.description.toLowerCase(),
+    transaction.payee?.toLowerCase() ?? "",
+    transaction.info?.toLowerCase() ?? "",
+    transaction.account?.toLowerCase() ?? "",
+    transaction.iban?.toLowerCase() ?? "",
+    transaction.bic?.toLowerCase() ?? "",
+  ].join("|");
+
+  const rawEntries = Object.entries(transaction.raw)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, value]) => `${key}:${String(value ?? "").trim().toLowerCase()}`);
+
+  return rawEntries.length > 0 ? `${base}|${rawEntries.join("|")}` : base;
+}
+
 function usePersistentTheme(): [Theme, (value: Theme | ((current: Theme) => Theme)) => void] {
   const prefersDark =
     typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches;
 
   const [theme, setTheme] = useState<Theme>(() => {
-    const stored = localStorage.getItem(THEME_KEY) as Theme | null;
+    const stored = safeStorageGet(THEME_KEY) as Theme | null;
     if (stored === "dark" || stored === "light") {
       return stored;
     }
@@ -454,7 +515,7 @@ function usePersistentTheme(): [Theme, (value: Theme | ((current: Theme) => Them
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    localStorage.setItem(THEME_KEY, theme);
+    safeStorageSet(THEME_KEY, theme);
   }, [theme]);
 
   return [theme, setTheme];
@@ -462,11 +523,11 @@ function usePersistentTheme(): [Theme, (value: Theme | ((current: Theme) => Them
 
 function usePersistentTransactions(): [Transaction[], React.Dispatch<React.SetStateAction<Transaction[]>>] {
   const [transactions, setTransactions] = useState<Transaction[]>(() =>
-    normaliseStoredTransactions(localStorage.getItem(STORAGE_KEY)),
+    normaliseStoredTransactions(safeStorageGet(STORAGE_KEY)),
   );
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
+    safeStorageSet(STORAGE_KEY, JSON.stringify(transactions));
   }, [transactions]);
 
   return [transactions, setTransactions];
@@ -710,7 +771,7 @@ export default function App() {
       setTransactions([]);
       setSelectedMonth("");
       setSearchQuery("");
-      localStorage.removeItem(STORAGE_KEY);
+      safeStorageRemove(STORAGE_KEY);
     }
   };
 
@@ -719,9 +780,23 @@ export default function App() {
   };
 
   const handleParsedTransactions = (parsed: Transaction[]) => {
-    setTransactions(existing =>
-      [...parsed, ...existing].sort((a, b) => (a.bookingDate < b.bookingDate ? 1 : -1)),
-    );
+    setTransactions(existing => {
+      const seen = new Set(existing.map(fingerprintTransaction));
+      const deduped = parsed.filter(transaction => {
+        const fingerprint = fingerprintTransaction(transaction);
+        if (seen.has(fingerprint)) {
+          return false;
+        }
+        seen.add(fingerprint);
+        return true;
+      });
+
+      if (deduped.length === 0) {
+        return existing;
+      }
+
+      return [...deduped, ...existing].sort((a, b) => (a.bookingDate < b.bookingDate ? 1 : -1));
+    });
   };
 
   const handleFileList = (files: FileList | null) => {

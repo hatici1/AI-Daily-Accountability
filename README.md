@@ -8,6 +8,7 @@ FinLedger is a lightweight personal finance dashboard that lets you upload CSV e
 - Categorise transactions with sensible defaults for common German banking exports
 - Filter by month or search by description, payee, or category
 - Visualise spending by category and keep an eye on income, expenses, and balance totals
+- Automatically skip duplicate entries if you re-import the same statement
 - Switch between dark and light theme, with preferences saved in local storage
 
 ## Getting started
