@@ -7,6 +7,11 @@
   gap: 1.75rem;
 }
 
+.text-soft-wrap {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .app__header {
   display: flex;
   flex-wrap: wrap;
@@ -247,7 +252,8 @@
 .transactions__table-wrapper {
   margin-top: 1rem;
   border-radius: 14px;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   border: 1px solid var(--border);
 }
 

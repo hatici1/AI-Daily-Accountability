@@ -360,6 +360,24 @@ function formatMonthLabel(month: string): string {
   return month;
 }
 
+function softWrapText(value: string, interval = 16): string {
+  if (!value) return value;
+
+  const segments = value.split(/(\s+)/).map(segment => {
+    if (/^\s+$/.test(segment) || segment.length <= interval) {
+      return segment;
+    }
+
+    const chunks: string[] = [];
+    for (let index = 0; index < segment.length; index += interval) {
+      chunks.push(segment.slice(index, index + interval));
+    }
+    return chunks.join("\u200b");
+  });
+
+  return segments.join("");
+}
+
 function categorise(transaction: Pick<Transaction, "description" | "payee" | "amount">): string {
   const haystack = `${transaction.description} ${transaction.payee ?? ""}`.toLowerCase();
   if (transaction.amount > 0) return "Income";
@@ -952,15 +970,26 @@ export default function App() {
                       )}
                     </td>
                     <td>
-                      <span className="transactions__description">{transaction.description}</span>
+                      <span
+                        className="transactions__description text-soft-wrap"
+                        title={transaction.description}
+                      >
+                        {softWrapText(transaction.description)}
+                      </span>
                       {transaction.payee && (
-                        <span className="transactions__subtext">Payee: {transaction.payee}</span>
+                        <span className="transactions__subtext text-soft-wrap" title={transaction.payee}>
+                          Payee: {softWrapText(transaction.payee)}
+                        </span>
                       )}
                       {transaction.info && (
-                        <span className="transactions__subtext">Info: {transaction.info}</span>
+                        <span className="transactions__subtext text-soft-wrap" title={transaction.info}>
+                          Info: {softWrapText(transaction.info)}
+                        </span>
                       )}
                       {transaction.account && (
-                        <span className="transactions__subtext">Account: {transaction.account}</span>
+                        <span className="transactions__subtext text-soft-wrap" title={transaction.account}>
+                          Account: {softWrapText(transaction.account)}
+                        </span>
                       )}
                       {transaction.iban && (
                         <span className="transactions__subtext">
@@ -968,19 +997,28 @@ export default function App() {
                         </span>
                       )}
                       {transaction.bic && (
-                        <span className="transactions__subtext">BIC: {transaction.bic}</span>
+                        <span className="transactions__subtext text-soft-wrap" title={transaction.bic}>
+                          BIC: {softWrapText(transaction.bic)}
+                        </span>
                       )}
                     </td>
                     <td>
-                      <span className="transactions__category">{transaction.category}</span>
+                      <span className="transactions__category text-soft-wrap" title={transaction.category}>
+                        {softWrapText(transaction.category)}
+                      </span>
                       {transaction.categorySource === "detected" && transaction.bankCategory && (
-                        <span className="transactions__subtext">Bank: {transaction.bankCategory}</span>
+                        <span className="transactions__subtext text-soft-wrap" title={transaction.bankCategory}>
+                          Bank: {softWrapText(transaction.bankCategory)}
+                        </span>
                       )}
                       {transaction.categorySource === "bank" &&
                         transaction.detectedCategory &&
                         transaction.detectedCategory !== transaction.category && (
-                          <span className="transactions__subtext">
-                            Vorschlag: {transaction.detectedCategory}
+                          <span
+                            className="transactions__subtext text-soft-wrap"
+                            title={transaction.detectedCategory}
+                          >
+                            Vorschlag: {softWrapText(transaction.detectedCategory)}
                           </span>
                         )}
                     </td>
@@ -1015,7 +1053,12 @@ export default function App() {
                 return (
                   <li key={category.category} className="categories__item">
                     <div className="categories__meta">
-                      <span className="categories__name">{category.category}</span>
+                      <span
+                        className="categories__name text-soft-wrap"
+                        title={category.category}
+                      >
+                        {softWrapText(category.category)}
+                      </span>
                       <span className="categories__amount negative">
                         {category.expense > 0 ? formatCurrency.format(category.expense * -1) : formatCurrency.format(0)}
                       </span>
@@ -1027,7 +1070,9 @@ export default function App() {
                       />
                     </div>
                     {category.income > 0 && (
-                      <div className="categories__income">Income: {formatCurrency.format(category.income)}</div>
+                      <div className="categories__income text-soft-wrap" title={`Income: ${formatCurrency.format(category.income)}`}>
+                        Income: {formatCurrency.format(category.income)}
+                      </div>
                     )}
                   </li>
                 );
@@ -1050,7 +1095,9 @@ export default function App() {
               {topPayees.map(payee => (
                 <li key={payee.label} className="insight-list__item">
                   <div className="insight-list__row">
-                    <span className="insight-list__primary">{payee.label}</span>
+                    <span className="insight-list__primary text-soft-wrap" title={payee.label}>
+                      {softWrapText(payee.label)}
+                    </span>
                     <span className="insight-list__value negative">
                       {formatCurrency.format(-payee.total)}
                     </span>
@@ -1060,7 +1107,9 @@ export default function App() {
                       {payee.count} {payee.count === 1 ? "transaction" : "transactions"}
                     </span>
                     {payee.categories.length > 0 && (
-                      <span>Categories: {payee.categories.join(", ")}</span>
+                      <span className="text-soft-wrap" title={payee.categories.join(", ")}>
+                        Categories: {softWrapText(payee.categories.join(", "))}
+                      </span>
                     )}
                   </div>
                 </li>
@@ -1081,7 +1130,9 @@ export default function App() {
               {recurringExpenses.map(item => (
                 <li key={item.label} className="insight-list__item">
                   <div className="insight-list__row">
-                    <span className="insight-list__primary">{item.label}</span>
+                    <span className="insight-list__primary text-soft-wrap" title={item.label}>
+                      {softWrapText(item.label)}
+                    </span>
                     <span className="insight-list__value negative">
                       {formatCurrency.format(-item.total)}
                     </span>
@@ -1091,7 +1142,9 @@ export default function App() {
                       {item.count} Zahlungen · {item.months} Monate
                     </span>
                     {item.categories.length > 0 && (
-                      <span>Kategorien: {item.categories.join(", ")}</span>
+                      <span className="text-soft-wrap" title={item.categories.join(", ")}>
+                        Kategorien: {softWrapText(item.categories.join(", "))}
+                      </span>
                     )}
                   </div>
                   <div className="insight-list__meta">
@@ -1117,16 +1170,25 @@ export default function App() {
               {largestExpenses.map(expense => (
                 <li key={expense.id} className="insight-list__item">
                   <div className="insight-list__row">
-                    <span className="insight-list__primary">
-                      {formatDisplayDate(expense.bookingDate)} · {expense.description}
+                    <span
+                      className="insight-list__primary text-soft-wrap"
+                      title={`${formatDisplayDate(expense.bookingDate)} · ${expense.description}`}
+                    >
+                      {formatDisplayDate(expense.bookingDate)} · {softWrapText(expense.description)}
                     </span>
                     <span className="insight-list__value negative">
                       {formatterFor(expense.currency || currency).format(expense.amount)}
                     </span>
                   </div>
                   <div className="insight-list__meta">
-                    <span>{expense.category}</span>
-                    {expense.payee && <span>{expense.payee}</span>}
+                    <span className="text-soft-wrap" title={expense.category}>
+                      {softWrapText(expense.category)}
+                    </span>
+                    {expense.payee && (
+                      <span className="text-soft-wrap" title={expense.payee}>
+                        {softWrapText(expense.payee)}
+                      </span>
+                    )}
                   </div>
                 </li>
               ))}
@@ -1179,7 +1241,9 @@ export default function App() {
         ) : (
           <ul className="insight-suggestions">
             {insightSuggestions.map((suggestion, index) => (
-              <li key={index}>{suggestion}</li>
+              <li key={index} className="text-soft-wrap" title={suggestion}>
+                {softWrapText(suggestion)}
+              </li>
             ))}
           </ul>
         )}
