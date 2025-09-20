@@ -29,3 +29,8 @@ src/
 ```
 
 Transactions are stored in `localStorage`, so clearing site data resets the dashboard.
+
+## Sample data
+
+- Click **Load sample data** in the import panel to pre-fill the dashboard with realistic transactions.
+- The raw file lives at [`public/sample-transactions.csv`](public/sample-transactions.csv) if you need to inspect or edit it.

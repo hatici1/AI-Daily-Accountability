@@ -23,6 +23,11 @@ FinLedger is a lightweight personal finance dashboard that lets you upload CSV e
 2. Open the provided local URL in your browser.
 3. Upload a CSV export from your online banking portal. The parser understands German style dates (`31.12.2024`) and decimal commas.
 
+### Quick demo
+
+- Use the **Load sample data** button inside the app to explore the dashboard with realistic transactions.
+- Alternatively, download [`sample-transactions.csv`](app/public/sample-transactions.csv) and import it manually.
+
 ## CSV requirements
 
 | Column               | Notes                                                                 |

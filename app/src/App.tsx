@@ -154,6 +154,88 @@ function mapHeader(header: string[]): HeaderMap {
   };
 }
 
+function parseTransactionsFromCsvText(rawText: string): Transaction[] {
+  let rows = parseCsv(rawText);
+  if (rows.length === 0) {
+    throw new Error("Die CSV-Datei enthält keine Daten.");
+  }
+
+  while (rows.length > 0 && rows[0].every(cell => !cell || !cell.trim())) {
+    rows = rows.slice(1);
+  }
+
+  if (rows.length === 0) {
+    throw new Error("Die CSV-Datei enthält keine Datenzeilen.");
+  }
+
+  const header = rows[0].map(normaliseHeader);
+  const headerMap = mapHeader(header);
+
+  if (headerMap.bookingDate < 0 || headerMap.amount < 0) {
+    throw new Error("Konnte Buchungsdatum oder Betrag in der Kopfzeile nicht finden. Bitte prüfen Sie die CSV-Datei.");
+  }
+
+  return rows.slice(1).map((row, index) => {
+    const rowAsObject: Record<string, string | undefined> = {};
+    header.forEach((key, idx) => {
+      rowAsObject[key] = row[idx];
+    });
+
+    const bookingRaw = String(row[headerMap.bookingDate] ?? "");
+    const valueRaw = headerMap.valueDate >= 0 ? String(row[headerMap.valueDate] ?? "") : "";
+    const amountRaw = String(row[headerMap.amount] ?? "");
+    const descriptionRaw = headerMap.description >= 0 ? row[headerMap.description] ?? "" : "";
+    const payeeRaw = headerMap.payee >= 0 ? row[headerMap.payee] ?? "" : "";
+    const currencyRaw =
+      headerMap.currency >= 0
+        ? row[headerMap.currency] ?? DEFAULT_CURRENCY
+        : rowAsObject["Währung"] || rowAsObject["Waehrung"] || DEFAULT_CURRENCY;
+    const accountRaw = headerMap.account >= 0 ? row[headerMap.account] ?? "" : "";
+    const infoRaw = headerMap.info >= 0 ? row[headerMap.info] ?? "" : "";
+    const ibanRaw = headerMap.iban >= 0 ? row[headerMap.iban] ?? "" : "";
+    const bicRaw = headerMap.bic >= 0 ? row[headerMap.bic] ?? "" : "";
+    const bankCategoryRaw = headerMap.bankCategory >= 0 ? row[headerMap.bankCategory] ?? "" : "";
+
+    const bookingDate = toIsoDateGerman(bookingRaw) ?? bookingRaw.trim();
+    const valueDate = toIsoDateGerman(valueRaw) ?? (valueRaw.trim() ? valueRaw.trim() : undefined);
+    const amount = parseAmountGerman(amountRaw);
+    if (amount === undefined) {
+      throw new Error(`Betrag in Zeile ${index + 2} konnte nicht gelesen werden.`);
+    }
+
+    const description = (descriptionRaw || payeeRaw || infoRaw || "").trim() || "—";
+    const payee = payeeRaw?.trim() || undefined;
+    const currencyValue = (currencyRaw ?? DEFAULT_CURRENCY).trim() || DEFAULT_CURRENCY;
+    const bankCategory = bankCategoryRaw.trim() || undefined;
+    const info = infoRaw.trim();
+    const account = accountRaw.trim();
+    const iban = ibanRaw.replace(/\s+/g, "").trim();
+    const bic = bicRaw.trim();
+    const detectedCategory = categorise({ description, payee, amount });
+    const finalCategory = bankCategory ?? detectedCategory;
+    const categorySource: CategorySource = bankCategory ? "bank" : "detected";
+
+    return {
+      id: generateId(index),
+      bookingDate,
+      valueDate,
+      description,
+      payee,
+      amount,
+      currency: currencyValue,
+      category: finalCategory,
+      detectedCategory,
+      categorySource,
+      bankCategory,
+      account: account && account !== description ? account : undefined,
+      info: info && info !== description ? info : undefined,
+      iban: iban || undefined,
+      bic: bic || undefined,
+      raw: rowAsObject,
+    };
+  });
+}
+
 function toIsoDateGerman(value: string): string | undefined {
   const trimmed = value.trim();
   const match = trimmed.match(/^(\d{1,2})[.](\d{1,2})[.](\d{2,4})$/);
@@ -649,85 +731,7 @@ export default function App() {
     reader.onload = () => {
       try {
         const rawText = String(reader.result ?? "");
-        let rows = parseCsv(rawText);
-        if (rows.length === 0) {
-          throw new Error("Die CSV-Datei enthält keine Daten.");
-        }
-        while (rows.length > 0 && rows[0].every(cell => !cell || !cell.trim())) {
-          rows = rows.slice(1);
-        }
-        if (rows.length === 0) {
-          throw new Error("Die CSV-Datei enthält keine Datenzeilen.");
-        }
-        const header = rows[0].map(normaliseHeader);
-        const headerMap = mapHeader(header);
-        if (headerMap.bookingDate < 0 || headerMap.amount < 0) {
-          throw new Error(
-            "Konnte Buchungsdatum oder Betrag in der Kopfzeile nicht finden. Bitte prüfen Sie die CSV-Datei.",
-          );
-        }
-        const newTransactions: Transaction[] = rows.slice(1).map((row, index) => {
-          const rowAsObject: Record<string, string | undefined> = {};
-          header.forEach((key, idx) => {
-            rowAsObject[key] = row[idx];
-          });
-
-          const bookingRaw = String(row[headerMap.bookingDate] ?? "");
-          const valueRaw = headerMap.valueDate >= 0 ? String(row[headerMap.valueDate] ?? "") : "";
-          const amountRaw = String(row[headerMap.amount] ?? "");
-          const descriptionRaw = headerMap.description >= 0 ? row[headerMap.description] ?? "" : "";
-          const payeeRaw = headerMap.payee >= 0 ? row[headerMap.payee] ?? "" : "";
-          const currencyRaw =
-            headerMap.currency >= 0
-              ? row[headerMap.currency] ?? DEFAULT_CURRENCY
-              : rowAsObject["Währung"] || rowAsObject["Waehrung"] || DEFAULT_CURRENCY;
-          const accountRaw = headerMap.account >= 0 ? row[headerMap.account] ?? "" : "";
-          const infoRaw = headerMap.info >= 0 ? row[headerMap.info] ?? "" : "";
-          const ibanRaw = headerMap.iban >= 0 ? row[headerMap.iban] ?? "" : "";
-          const bicRaw = headerMap.bic >= 0 ? row[headerMap.bic] ?? "" : "";
-          const bankCategoryRaw = headerMap.bankCategory >= 0 ? row[headerMap.bankCategory] ?? "" : "";
-
-          const bookingDate = toIsoDateGerman(bookingRaw) ?? bookingRaw.trim();
-          const valueDate = toIsoDateGerman(valueRaw) ?? (valueRaw.trim() ? valueRaw.trim() : undefined);
-          const amount = parseAmountGerman(amountRaw);
-          if (amount === undefined) {
-            throw new Error(`Betrag in Zeile ${index + 2} konnte nicht gelesen werden.`);
-          }
-
-          const description = (descriptionRaw || payeeRaw || infoRaw || "").trim() || "—";
-          const payee = payeeRaw?.trim() || undefined;
-          const currencyValue = (currencyRaw ?? DEFAULT_CURRENCY).trim() || DEFAULT_CURRENCY;
-          const bankCategory = bankCategoryRaw.trim() || undefined;
-          const info = infoRaw.trim();
-          const account = accountRaw.trim();
-          const iban = ibanRaw.replace(/\s+/g, "").trim();
-          const bic = bicRaw.trim();
-          const detectedCategory = categorise({ description, payee, amount });
-          const finalCategory = bankCategory ?? detectedCategory;
-          const categorySource: CategorySource = bankCategory ? "bank" : "detected";
-
-          const transaction: Transaction = {
-            id: generateId(index),
-            bookingDate,
-            valueDate,
-            description,
-            payee,
-            amount,
-            currency: currencyValue,
-            category: finalCategory,
-            detectedCategory,
-            categorySource,
-            bankCategory,
-            account: account && account !== description ? account : undefined,
-            info: info && info !== description ? info : undefined,
-            iban: iban || undefined,
-            bic: bic || undefined,
-            raw: rowAsObject,
-          };
-
-          return transaction;
-        });
-
+        const newTransactions = parseTransactionsFromCsvText(rawText);
         handleParsedTransactions(newTransactions);
       } catch (error) {
         console.error(error);
@@ -740,6 +744,25 @@ export default function App() {
       }
     };
     reader.readAsText(file);
+  };
+
+  const importSampleData = async () => {
+    try {
+      const response = await fetch("sample-transactions.csv", { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const text = await response.text();
+      const sampleTransactions = parseTransactionsFromCsvText(text);
+      handleParsedTransactions(sampleTransactions);
+    } catch (error) {
+      console.error(error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unbekannter Fehler beim Laden der Beispieldaten.";
+      alert(`Beispieldaten konnten nicht geladen werden: ${message}`);
+    }
   };
 
   const onFileChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -767,16 +790,21 @@ export default function App() {
 
       <section className="panel">
         <div className="panel__content">
-          <label className="file-upload">
-            <span className="file-upload__label">Import transactions</span>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv,text/csv"
-              onChange={onFileChange}
-              className="file-upload__input"
-            />
-          </label>
+          <div className="import-actions">
+            <label className="file-upload">
+              <span className="file-upload__label">Import transactions</span>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,text/csv"
+                onChange={onFileChange}
+                className="file-upload__input"
+              />
+            </label>
+            <button type="button" className="button tertiary" onClick={importSampleData}>
+              Load sample data
+            </button>
+          </div>
           <div className="filters">
             <label className="filters__item">
               <span>Month</span>
@@ -802,6 +830,7 @@ export default function App() {
         </div>
         <p className="panel__hint">
           Works best with CSV exports from German banks. The parser automatically detects delimiters and common column names.
+          Need a quick demo? Load the bundled sample dataset.
         </p>
       </section>
 

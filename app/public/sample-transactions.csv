@@ -1,0 +1,7 @@
+Auftragskonto;Buchungstag;Valutadatum;Buchungstext;Verwendungszweck;Beguenstigter/Zahlungspflichtiger;Kontonummer/IBAN;BIC (SWIFT-Code);Betrag;Waehrung;Info;Kategorie
+DE09876543210987654321;01.02.2025;01.02.2025;Gehalt;Gehalt Februar;Example GmbH;DE44123412341234123412;GENODEF1S01;2.450,00;EUR;Lohnzahlung;Einkommen
+DE09876543210987654321;03.02.2025;03.02.2025;Lastschrift;Miete Februar;Wohnbau AG;DE99123412341234123412;DEUTDEFFXXX;-950,00;EUR;Wohnung Musterstraße 1;Wohnen
+DE09876543210987654321;05.02.2025;05.02.2025;Kartenzahlung;Wocheneinkauf;REWE Markt GmbH;DE28123412341234123412;COBADEFFXXX;-74,35;EUR;Filiale Köln-Innenstadt;Lebensmittel
+DE09876543210987654321;12.02.2025;12.02.2025;SEPA-Überweisung;Gas und Strom Januar;Stadtwerke Köln;DE55123412341234123412;EDEADEDDXXX;-125,80;EUR;Kundennummer 123456;Energie
+DE09876543210987654321;18.02.2025;18.02.2025;Lastschrift;Streaming Abo;Netflix International;LU56123412341234123412;CELLLULLXXX;-17,99;EUR;Kundenkonto 998877;Freizeit
+DE09876543210987654321;22.02.2025;22.02.2025;Gutschrift;Steuererstattung;Finanzamt Köln;DE66123412341234123412;MARKDEF1100;320,50;EUR;Erstattung Einkommensteuer;Erstattung
